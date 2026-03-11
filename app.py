@@ -102,7 +102,7 @@ page = st.sidebar.selectbox("Select Page", ["Game", "Statistics", "About"])
 
 # ----------------- ABOUT PAGE -----------------
 if page == "About":
-    st.title("Welcome To The House of Hearts!")
+    st.title("Welcome To The House of Hearths!")
 
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
@@ -114,7 +114,8 @@ if page == "About":
     - Track your game statistics (wins, losses, ties, money) in a data table.
     - Place bets and see your gains/losses.
     - Interactive buttons for Hit, Stand, and revealing the dealer's hand.
-    Enjoy the game and may the odds be in your favor! 🎲
+    Enjoy the game and may the odds be in your favor!
+    - Targetted for bored users!
     """)
 # ----------------- STATISTICS PAGE -----------------
 elif page == "Statistics":
