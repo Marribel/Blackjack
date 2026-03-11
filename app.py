@@ -28,6 +28,20 @@ if "player" not in st.session_state:
     st.session_state.dealer_wins = 0
     st.session_state.ties = 0
 
+# Extended session state for money/bets
+if "player_money" not in st.session_state:
+    st.session_state.player_money = 50
+    st.session_state.current_bet = 0
+    st.session_state.money_history = []
+
+if "lose_messages" not in st.session_state:
+    st.session_state.lose_messages = [
+        "The house always wins!",
+        "Snake eyes huh?",
+        "Better luck next time!",
+        "Ouch! You're broke!"
+    ]
+
 # ----------------- CALLBACK FUNCTIONS -----------------
 def start_new_game():
     st.session_state.player = [deal_card(), deal_card()]
@@ -35,12 +49,23 @@ def start_new_game():
     st.session_state.game_over = False
     st.session_state.show_dealer = False
     st.session_state.message = ""
+    st.session_state.current_bet = 0
+    # Reset money if totally broke
+    if st.session_state.player_money <= 0:
+        st.session_state.player_money = 50
+        st.session_state.money_history.clear()
+
+def place_bet(bet):
+    st.session_state.current_bet = bet
+    start_new_game()
 
 def hit():
     st.session_state.player.append(deal_card())
     if calculate_total(st.session_state.player) > 21:
         st.session_state.game_over = True
-        st.session_state.message = "💥 You busted!"
+        st.session_state.message = f"💥 You busted! You lost ${st.session_state.current_bet}"
+        st.session_state.player_money -= st.session_state.current_bet
+        st.session_state.money_history.append(-st.session_state.current_bet)
         st.session_state.games_played += 1
         st.session_state.dealer_wins += 1
 
@@ -55,16 +80,23 @@ def reveal_dealer():
     dealer_total = calculate_total(st.session_state.dealer)
 
     if dealer_total > 21:
-        st.session_state.message = "🎉 Dealer busted! You win!"
+        st.session_state.message = f"🎉 Dealer busted! You win ${st.session_state.current_bet}!"
+        st.session_state.player_money += st.session_state.current_bet
+        st.session_state.money_history.append(st.session_state.current_bet)
         st.session_state.player_wins += 1
     elif dealer_total > player_total:
-        st.session_state.message = "💥 Dealer wins!"
+        st.session_state.message = f"💥 Dealer wins! You lost ${st.session_state.current_bet}"
+        st.session_state.player_money -= st.session_state.current_bet
+        st.session_state.money_history.append(-st.session_state.current_bet)
         st.session_state.dealer_wins += 1
     elif dealer_total < player_total:
-        st.session_state.message = "🎉 You win!"
+        st.session_state.message = f"🎉 You win ${st.session_state.current_bet}!"
+        st.session_state.player_money += st.session_state.current_bet
+        st.session_state.money_history.append(st.session_state.current_bet)
         st.session_state.player_wins += 1
     else:
         st.session_state.message = "🤝 It's a tie!"
+        st.session_state.money_history.append(0)
         st.session_state.ties += 1
 
     st.session_state.show_dealer = True
@@ -79,29 +111,56 @@ if page == "About":
     st.markdown("""
     **Features:**
     - Play Blackjack against a computer dealer.
-    - Track your game statistics (wins, losses, ties) in a data table.
+    - Track your game statistics (wins, losses, ties, money) in a data table.
+    - Place bets and see your gains/losses.
     - Interactive buttons for Hit, Stand, and revealing the dealer's hand.
-    - Stylish card containers for dealer and player.
-
     Enjoy the game and may the odds be in your favor! 🎲
     """)
 
-# ----------------- STATISTICS PAGE -----------------
+# ----------------- STATISTICS PAGE (extended) -----------------
 elif page == "Statistics":
     st.title("📊 Game Statistics")
     data = {
         "Games Played": [st.session_state.games_played],
         "Player Wins": [st.session_state.player_wins],
         "Dealer Wins": [st.session_state.dealer_wins],
-        "Ties": [st.session_state.ties]
+        "Ties": [st.session_state.ties],
+        "Current Money": [st.session_state.player_money],
+        "Net Gain/Loss": [sum(st.session_state.money_history)]
     }
     df = pd.DataFrame(data)
     st.dataframe(df)
+
+    st.subheader("💹 Money History Per Game")
+    if st.session_state.money_history:
+        history_df = pd.DataFrame({
+            "Game": list(range(1, len(st.session_state.money_history) + 1)),
+            "Change": st.session_state.money_history
+        })
+        st.dataframe(history_df)
+    else:
+        st.write("No games played yet!")
 
 # ----------------- MAIN GAME PAGE -----------------
 else:
     st.title("🃏 Blackjack")
 
+    # Show current money
+    st.subheader(f"💰 Money: ${st.session_state.player_money}")
+
+    # If player has money, show bet input
+    if st.session_state.player_money > 0 and st.session_state.current_bet == 0:
+        bet = st.number_input("Enter your bet:", min_value=1, max_value=st.session_state.player_money, step=1)
+        st.button("Place Bet", on_click=place_bet, args=(bet,))
+        st.stop()  # wait for player to place bet
+
+    # If player is broke
+    if st.session_state.player_money <= 0:
+        st.subheader(random.choice(st.session_state.lose_messages))
+        st.button("New Game", on_click=start_new_game)
+        st.stop()  # prevent further game interaction
+
+    # --- Existing card display code ---
     # CSS for card containers
     st.markdown("""
     <style>
@@ -163,3 +222,7 @@ else:
     # Message display
     if st.session_state.message:
         st.subheader(st.session_state.message)
+
+    # Money history for current session
+    st.subheader("💹 Money History")
+    st.write(st.session_state.money_history)
