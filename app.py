@@ -18,9 +18,9 @@ def calculate_total(hand):
 
 # ----------------- SESSION STATE -----------------
 if "player" not in st.session_state:
-    st.session_state.player = [deal_card(), deal_card()]
-    st.session_state.dealer = [deal_card(), deal_card()]
-    st.session_state.game_over = True  # start as True so player can place first bet
+    st.session_state.player = []
+    st.session_state.dealer = []
+    st.session_state.game_over = True  # mark as ready to place bet
     st.session_state.show_dealer = False
     st.session_state.message = ""
     st.session_state.games_played = 0
@@ -28,7 +28,6 @@ if "player" not in st.session_state:
     st.session_state.dealer_wins = 0
     st.session_state.ties = 0
 
-# Extended session state for money/bets
 if "player_money" not in st.session_state:
     st.session_state.player_money = 50
     st.session_state.current_bet = 0
@@ -43,35 +42,22 @@ if "lose_messages" not in st.session_state:
     ]
 
 # ----------------- CALLBACK FUNCTIONS -----------------
-def start_new_game():
+def start_round():
+    """Start the actual Blackjack round after bet is placed."""
     st.session_state.player = [deal_card(), deal_card()]
     st.session_state.dealer = [deal_card(), deal_card()]
     st.session_state.game_over = False
     st.session_state.show_dealer = False
     st.session_state.message = ""
-    st.session_state.current_bet = 0
-    # Reset money if totally broke
-    if st.session_state.player_money <= 0:
-        st.session_state.player_money = 50
-        st.session_state.money_history.clear()
 
 def place_bet(bet):
     st.session_state.current_bet = bet
-    st.session_state.game_over = False
-    st.session_state.player = [deal_card(), deal_card()]
-    st.session_state.dealer = [deal_card(), deal_card()]
-    st.session_state.show_dealer = False
-    st.session_state.message = ""
+    start_round()
 
 def hit():
     st.session_state.player.append(deal_card())
     if calculate_total(st.session_state.player) > 21:
-        st.session_state.game_over = True
-        st.session_state.message = f"💥 You busted! You lost ${st.session_state.current_bet}"
-        st.session_state.player_money -= st.session_state.current_bet
-        st.session_state.money_history.append(-st.session_state.current_bet)
-        st.session_state.games_played += 1
-        st.session_state.dealer_wins += 1
+        end_round(f"💥 You busted! You lost ${st.session_state.current_bet}", dealer_win=True)
 
 def stand():
     reveal_dealer()
@@ -84,29 +70,32 @@ def reveal_dealer():
     dealer_total = calculate_total(st.session_state.dealer)
 
     if dealer_total > 21:
-        st.session_state.message = f"🎉 Dealer busted! You win ${st.session_state.current_bet}!"
+        end_round(f"🎉 Dealer busted! You win ${st.session_state.current_bet}!", player_win=True)
+    elif dealer_total > player_total:
+        end_round(f"💥 Dealer wins! You lost ${st.session_state.current_bet}", dealer_win=True)
+    elif dealer_total < player_total:
+        end_round(f"🎉 You win ${st.session_state.current_bet}!", player_win=True)
+    else:
+        end_round("🤝 It's a tie!")
+
+def end_round(message, player_win=False, dealer_win=False):
+    """Handles the result of a round without starting a new bet."""
+    st.session_state.message = message
+    st.session_state.show_dealer = True
+    st.session_state.game_over = True
+    st.session_state.games_played += 1
+
+    if player_win:
         st.session_state.player_money += st.session_state.current_bet
         st.session_state.money_history.append(st.session_state.current_bet)
         st.session_state.player_wins += 1
-    elif dealer_total > player_total:
-        st.session_state.message = f"💥 Dealer wins! You lost ${st.session_state.current_bet}"
+    elif dealer_win:
         st.session_state.player_money -= st.session_state.current_bet
         st.session_state.money_history.append(-st.session_state.current_bet)
         st.session_state.dealer_wins += 1
-    elif dealer_total < player_total:
-        st.session_state.message = f"🎉 You win ${st.session_state.current_bet}!"
-        st.session_state.player_money += st.session_state.current_bet
-        st.session_state.money_history.append(st.session_state.current_bet)
-        st.session_state.player_wins += 1
     else:
-        st.session_state.message = "🤝 It's a tie!"
         st.session_state.money_history.append(0)
         st.session_state.ties += 1
-
-    st.session_state.show_dealer = True
-    st.session_state.games_played += 1
-    st.session_state.game_over = True  # mark round as finished
-    # current_bet stays until next round
 
 # ----------------- PAGE NAVIGATION -----------------
 page = st.sidebar.selectbox("Select Page", ["Game", "Statistics", "About"])
@@ -150,8 +139,6 @@ elif page == "Statistics":
 # ----------------- MAIN GAME PAGE -----------------
 else:
     st.title("🃏 Blackjack")
-
-    # Show current money
     st.subheader(f"💰 Money: ${st.session_state.player_money}")
 
     # ----------------- BETTING -----------------
@@ -168,10 +155,10 @@ else:
     # If player is broke
     if st.session_state.player_money <= 0:
         st.subheader(random.choice(st.session_state.lose_messages))
-        st.button("New Game", on_click=start_new_game)
-        st.stop()  # prevent further game interaction
+        st.button("New Game", on_click=lambda: setattr(st.session_state, "player_money", 50))
+        st.stop()
 
-    # --- CARD DISPLAY & BUTTONS ---
+    # ----------------- CARD DISPLAY -----------------
     st.markdown("""
     <style>
     .card-table {
@@ -201,7 +188,6 @@ else:
     # Dealer container
     st.markdown("<div class='card-table'>", unsafe_allow_html=True)
     st.subheader("Dealer's hand")
-    dealer_cards = ""
     if st.session_state.show_dealer:
         dealer_cards = " ".join([f"<div class='card'>{c}</div>" for c in st.session_state.dealer])
         st.markdown(f"{dealer_cards} Total: {calculate_total(st.session_state.dealer)}", unsafe_allow_html=True)
@@ -217,22 +203,23 @@ else:
     st.markdown(f"{player_cards} Total: {calculate_total(st.session_state.player)}", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Buttons at the bottom
+    # ----------------- BUTTONS -----------------
     st.markdown("<div class='buttons-container'>", unsafe_allow_html=True)
     if not st.session_state.game_over:
         col1, col2 = st.columns(2)
         col1.button("Hit", on_click=hit)
         col2.button("Stand", on_click=stand)
-    elif not st.session_state.show_dealer:
+    elif st.session_state.game_over and not st.session_state.show_dealer:
         st.button("Reveal Dealer Hand", on_click=reveal_dealer)
     else:
-        st.button("New Game", on_click=start_new_game)
+        # Round is over, show message and allow returning to betting
+        if st.button("Next Round (Place Bet)"):
+            st.session_state.current_bet = 0  # reset bet for next round
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Message display
+    # ----------------- MESSAGE & MONEY -----------------
     if st.session_state.message:
         st.subheader(st.session_state.message)
 
-    # Money history for current session
     st.subheader("💹 Money History")
     st.write(st.session_state.money_history)
