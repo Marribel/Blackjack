@@ -104,11 +104,9 @@ page = st.sidebar.selectbox("Select Page", ["Game", "Statistics", "About"])
 if page == "About":
     st.title("Welcome To The House of Hearts!")
 
-    st.markdown("""
-    <div style="text-align: center;">
-        <img src="logo.png" width="250">
-    </div>
-    """, unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.image("logo.png", width=250)
 
     st.markdown("""
     **Features:**
@@ -116,7 +114,6 @@ if page == "About":
     - Track your game statistics (wins, losses, ties, money) in a data table.
     - Place bets and see your gains/losses.
     - Interactive buttons for Hit, Stand, and revealing the dealer's hand.
-    
     Enjoy the game and may the odds be in your favor! 🎲
     """)
 # ----------------- STATISTICS PAGE -----------------
