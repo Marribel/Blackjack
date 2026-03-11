@@ -49,15 +49,6 @@ def start_new_game():
     st.session_state.game_over = False
     st.session_state.show_dealer = False
     st.session_state.message = ""
-    st.session_state.current_bet = 0
-    # Reset money if totally broke
-    if st.session_state.player_money <= 0:
-        st.session_state.player_money = 50
-        st.session_state.money_history.clear()
-
-def place_bet(bet):
-    st.session_state.current_bet = bet
-    start_new_game()
 
 def hit():
     st.session_state.player.append(deal_card())
@@ -117,7 +108,7 @@ if page == "About":
     Enjoy the game and may the odds be in your favor! 🎲
     """)
 
-# ----------------- STATISTICS PAGE (extended) -----------------
+# ----------------- STATISTICS PAGE -----------------
 elif page == "Statistics":
     st.title("📊 Game Statistics")
     data = {
@@ -148,20 +139,25 @@ else:
     # Show current money
     st.subheader(f"💰 Money: ${st.session_state.player_money}")
 
-    # If player has money, show bet input
+    # If player has no bet yet, ask for bet
     if st.session_state.player_money > 0 and st.session_state.current_bet == 0:
-        bet = st.number_input("Enter your bet:", min_value=1, max_value=st.session_state.player_money, step=1)
-        st.button("Place Bet", on_click=place_bet, args=(bet,))
-        st.stop()  # wait for player to place bet
+        st.number_input(
+            "Enter your bet:",
+            min_value=1,
+            max_value=st.session_state.player_money,
+            step=1,
+            key="current_bet"
+        )
+        st.button("Place Bet", on_click=start_new_game)
+        st.stop()
 
     # If player is broke
     if st.session_state.player_money <= 0:
         st.subheader(random.choice(st.session_state.lose_messages))
-        st.button("New Game", on_click=start_new_game)
-        st.stop()  # prevent further game interaction
+        st.button("New Game", on_click=lambda: setattr(st.session_state, "player_money", 50))
+        st.stop()
 
-    # --- Existing card display code ---
-    # CSS for card containers
+    # ----------------- CSS -----------------
     st.markdown("""
     <style>
     .card-table {
@@ -188,10 +184,9 @@ else:
     </style>
     """, unsafe_allow_html=True)
 
-    # Dealer container
+    # ----------------- DEALER -----------------
     st.markdown("<div class='card-table'>", unsafe_allow_html=True)
     st.subheader("Dealer's hand")
-    dealer_cards = ""
     if st.session_state.show_dealer:
         dealer_cards = " ".join([f"<div class='card'>{c}</div>" for c in st.session_state.dealer])
         st.markdown(f"{dealer_cards} Total: {calculate_total(st.session_state.dealer)}", unsafe_allow_html=True)
@@ -200,14 +195,14 @@ else:
         st.markdown(f"{dealer_cards} Total: ?", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Player container
+    # ----------------- PLAYER -----------------
     st.markdown("<div class='card-table'>", unsafe_allow_html=True)
     st.subheader("Player's hand")
     player_cards = " ".join([f"<div class='card'>{c}</div>" for c in st.session_state.player])
     st.markdown(f"{player_cards} Total: {calculate_total(st.session_state.player)}", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Buttons at the bottom
+    # ----------------- BUTTONS -----------------
     st.markdown("<div class='buttons-container'>", unsafe_allow_html=True)
     if not st.session_state.game_over:
         col1, col2 = st.columns(2)
@@ -219,10 +214,10 @@ else:
         st.button("New Game", on_click=start_new_game)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Message display
+    # ----------------- MESSAGE -----------------
     if st.session_state.message:
         st.subheader(st.session_state.message)
 
-    # Money history for current session
+    # ----------------- MONEY HISTORY -----------------
     st.subheader("💹 Money History")
     st.write(st.session_state.money_history)
