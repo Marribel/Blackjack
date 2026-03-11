@@ -103,15 +103,22 @@ page = st.sidebar.selectbox("Select Page", ["Game", "Statistics", "About"])
 # ----------------- ABOUT PAGE -----------------
 if page == "About":
     st.title("Welcome To The House of Hearts!")
+
+    st.markdown("""
+    <div style="text-align: center;">
+        <img src="logo.png" width="250">
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("""
     **Features:**
     - Play Blackjack against a computer dealer.
     - Track your game statistics (wins, losses, ties, money) in a data table.
     - Place bets and see your gains/losses.
     - Interactive buttons for Hit, Stand, and revealing the dealer's hand.
+    
     Enjoy the game and may the odds be in your favor! 🎲
     """)
-
 # ----------------- STATISTICS PAGE -----------------
 elif page == "Statistics":
     st.title("📊 Game Statistics")
